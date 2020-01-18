@@ -1,5 +1,5 @@
 #if 0 /* -*- mode: c; c-file-style: "stroustrup"; tab-width: 8; -*-
- set -eu; trg=test-`exec basename "$0" .c`; rm -f "$trg"
+ set -euf; trg=test-`exec basename "$0" .c`; rm -f "$trg"
  #case ${1-} in '') set x -O2; shift; esac
  case ${1-} in '') set x -O0 -ggdb; shift; esac
  set -x; exec ${CC:-gcc} -std=c99 -DTEST -DTEST_SMALL "$@" -o "$trg" "$0"
@@ -15,58 +15,97 @@
  *	  All rights reserved
  *
  * Created: Thu 17 Dec 2015 21:04:16 EET too
- * Last modified: Sat 02 Jan 2016 20:38:53 +0200 too
+ * Last modified: Sat 18 Jan 2020 15:36:40 +0200 too
  */
 
-#if 0 // <- set to one (1) every now and then to see these...
+/* SPDX-License-Identifier: BSD-2-Clause */
+
+// hint: gcc -dM -E -xc /dev/null | grep -i gnuc
+// also: clang -dM -E -xc /dev/null | grep -i gnuc
+#if defined (__GNUC__)
+
+#if 0 // use of -Wpadded gets complicated, 32 vs 64 bit systems
 #pragma GCC diagnostic warning "-Wpadded"
-#pragma GCC diagnostic warning "-Wpedantic"
 #endif
 
-#if 1 // ditto
+#if 1
 #pragma GCC diagnostic warning "-Wsuggest-attribute=pure"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=const"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=noreturn"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=format"
 #endif
 
-#pragma GCC diagnostic error "-Wall"
-#pragma GCC diagnostic error "-Wextra"
-#pragma GCC diagnostic error "-Wstrict-prototypes"
-#pragma GCC diagnostic error "-Wuninitialized"
-#pragma GCC diagnostic error "-Winit-self"
+#pragma GCC diagnostic warning "-Wall"
+#pragma GCC diagnostic warning "-Wextra"
 
-// -Wformat=2 ¡currently! (2015-12) equivalent of the following
-#pragma GCC diagnostic error "-Wformat"
-#pragma GCC diagnostic error "-Wformat-nonliteral"
-#pragma GCC diagnostic error "-Wformat-security"
-#pragma GCC diagnostic error "-Wformat-y2k"
+#if __GNUC__ >= 8
+// -Wpedantic first known by gcc 5 -- and since gcc 8 variadic macro
+// definitions with ... ## __VA_ARGS__ ... are allowed with -Wpedantic.
+#pragma GCC diagnostic warning "-Wpedantic"
+#endif
 
-#pragma GCC diagnostic error "-Wcast-align"
-#pragma GCC diagnostic error "-Wpointer-arith"
-#pragma GCC diagnostic error "-Wwrite-strings"
-#pragma GCC diagnostic error "-Wcast-qual"
-#pragma GCC diagnostic error "-Wshadow"
-#pragma GCC diagnostic error "-Wmissing-include-dirs"
-#pragma GCC diagnostic error "-Wundef"
-#pragma GCC diagnostic error "-Wbad-function-cast"
-#pragma GCC diagnostic error "-Wlogical-op"
-#pragma GCC diagnostic error "-Waggregate-return"
-#pragma GCC diagnostic error "-Wold-style-definition"
-#pragma GCC diagnostic error "-Wmissing-prototypes"
-#pragma GCC diagnostic error "-Wmissing-declarations"
-#pragma GCC diagnostic error "-Wredundant-decls"
-#pragma GCC diagnostic error "-Wnested-externs"
-#pragma GCC diagnostic error "-Winline"
-#pragma GCC diagnostic error "-Wvla"
-#pragma GCC diagnostic error "-Woverlength-strings"
+#if __GNUC__ >= 7
+// gcc manual says all kind of /* fall.*through */ regexp's work too
+// but perhaps only when cpp does not filter comments out. thus...
+#define FALL_THROUGH __attribute__ ((fallthrough))
+#else
+#define FALL_THROUGH ((void)0)
+#endif
+
+#ifndef __cplusplus
+#pragma GCC diagnostic warning "-Wstrict-prototypes"
+#pragma GCC diagnostic warning "-Wbad-function-cast"
+#pragma GCC diagnostic warning "-Wold-style-definition"
+#pragma GCC diagnostic warning "-Wmissing-prototypes"
+#pragma GCC diagnostic warning "-Wnested-externs"
+#endif
+
+// -Wformat=2 ¡currently! (2020-0202) equivalent of the following 4
+#pragma GCC diagnostic warning "-Wformat"
+#pragma GCC diagnostic warning "-Wformat-nonliteral"
+#pragma GCC diagnostic warning "-Wformat-security"
+#pragma GCC diagnostic warning "-Wformat-y2k"
+
+#pragma GCC diagnostic warning "-Wcast-align"
+#pragma GCC diagnostic warning "-Wpointer-arith"
+#pragma GCC diagnostic warning "-Wwrite-strings"
+#pragma GCC diagnostic warning "-Wcast-qual"
+#pragma GCC diagnostic warning "-Wshadow"
+#pragma GCC diagnostic warning "-Wmissing-include-dirs"
+#pragma GCC diagnostic warning "-Wundef"
+
+#ifndef __clang__ // XXX revisit -- tried with clang 3.8.0
+#pragma GCC diagnostic warning "-Wlogical-op"
+#endif
+
+#ifndef __cplusplus // supported by c++ compiler but perhaps not worth having
+#pragma GCC diagnostic warning "-Waggregate-return"
+#endif
+
+#pragma GCC diagnostic warning "-Wmissing-declarations"
+#pragma GCC diagnostic warning "-Wredundant-decls"
+#pragma GCC diagnostic warning "-Winline"
+#pragma GCC diagnostic warning "-Wvla"
+#pragma GCC diagnostic warning "-Woverlength-strings"
+#pragma GCC diagnostic warning "-Wuninitialized"
 
 //ragma GCC diagnostic error "-Wfloat-equal"
 //ragma GCC diagnostic error "-Werror"
 //ragma GCC diagnostic error "-Wconversion"
 
-#define _DEFAULT_SOURCE
-#define _SVID_SOURCE
+// avoiding known problems (turning some errors set above to warnings)...
+#if __GNUC__ == 4
+#ifndef __clang__
+#pragma GCC diagnostic warning "-Winline" // gcc 4.4.6 ...
+#pragma GCC diagnostic warning "-Wuninitialized" // gcc 4.4.6, 4.8.5 ...
+#endif
+#endif
+
+#endif /* defined (__GNUC__) */
+
+// note: these days compilers default to 'gnu'11 or newer. c99 still used here
+#define _DEFAULT_SOURCE /* linux. glibc 2.19 or newer */
+#define _SVID_SOURCE /* linux. glibc older than 2.19 */
 
 #include <unistd.h>
 #include <stddef.h> // for offsetof
