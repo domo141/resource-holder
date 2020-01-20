@@ -1,5 +1,5 @@
 #if 0 /* -*- mode: c; c-file-style: "stroustrup"; tab-width: 8; -*-
- set -euf; trg=test-`exec basename "$0" .c`; rm -f "$trg"
+ set -euf; trg=${0##*''/}; trg=test-${trg%.c}; rm -f "$trg"
  #case ${1-} in '') set x -O2; shift; esac
  case ${1-} in '') set x -O0 -ggdb; shift; esac
  set -x; exec ${CC:-gcc} -std=c99 -DTEST -DTEST_SMALL "$@" -o "$trg" "$0"
@@ -15,7 +15,7 @@
  *	  All rights reserved
  *
  * Created: Thu 17 Dec 2015 21:04:16 EET too
- * Last modified: Sat 18 Jan 2020 15:36:40 +0200 too
+ * Last modified: Mon 20 Jan 2020 20:20:20 +0200 too
  */
 
 /* SPDX-License-Identifier: BSD-2-Clause */
@@ -29,18 +29,18 @@
 #endif
 
 #if 1
+#if __GNUC__ >= 5
 #pragma GCC diagnostic warning "-Wsuggest-attribute=pure"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=const"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=noreturn"
 #pragma GCC diagnostic warning "-Wsuggest-attribute=format"
 #endif
+#endif
 
 #pragma GCC diagnostic warning "-Wall"
 #pragma GCC diagnostic warning "-Wextra"
 
-#if __GNUC__ >= 8
-// -Wpedantic first known by gcc 5 -- and since gcc 8 variadic macro
-// definitions with ... ## __VA_ARGS__ ... are allowed with -Wpedantic.
+#if __GNUC__ >= 8 // impractically strict in gccs 5, 6 and 7
 #pragma GCC diagnostic warning "-Wpedantic"
 #endif
 
@@ -93,19 +93,19 @@
 //ragma GCC diagnostic error "-Werror"
 //ragma GCC diagnostic error "-Wconversion"
 
-// avoiding known problems (turning some errors set above to warnings)...
+// avoiding known problems (turning some settings set above to ignored)...
 #if __GNUC__ == 4
 #ifndef __clang__
-#pragma GCC diagnostic warning "-Winline" // gcc 4.4.6 ...
-#pragma GCC diagnostic warning "-Wuninitialized" // gcc 4.4.6, 4.8.5 ...
+#pragma GCC diagnostic ignored "-Winline" // gcc 4.4.6 ...
+#pragma GCC diagnostic ignored "-Wuninitialized" // gcc 4.4.6, 4.8.5 ...
 #endif
 #endif
 
 #endif /* defined (__GNUC__) */
 
 // note: these days compilers default to 'gnu'11 or newer. c99 still used here
-#define _DEFAULT_SOURCE /* linux. glibc 2.19 or newer */
-#define _SVID_SOURCE /* linux. glibc older than 2.19 */
+#define _DEFAULT_SOURCE /* linux, glibc 2.19 or newer */
+#define _SVID_SOURCE /* linux, glibc older than 2.19 */
 
 #include <unistd.h>
 #include <stddef.h> // for offsetof
@@ -202,9 +202,11 @@ void hexdump(const void * addr, unsigned len)
 }
 #endif
 
+#if defined (__GNUC__) && __GNUC__ >= 5
 #pragma GCC diagnostic push
-// we're interested how struct resource_holder aligns
+// we're interested to see how struct resource_holder aligns...
 #pragma GCC diagnostic warning "-Wpadded"
+#endif
 struct resource_holder
 {
     struct resource_holder * prev; // circular, points to last in use
@@ -218,7 +220,9 @@ struct resource_holder
 	void * data;
     } item[];
 };
+#if defined (__GNUC__) && __GNUC__ >= 5
 #pragma GCC diagnostic pop
+#endif
 
 /*
   Possible resource-holder-configuration (-> next, <-> both & `----^ prev):
